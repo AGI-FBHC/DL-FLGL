@@ -51,7 +51,7 @@ class CoreTests(unittest.TestCase):
                   torch.tensor([[1.],[0.],[1.]], dtype=torch.float64)):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                corr = torch.nan_to_num(torch.corrcoef(y.T), nan=0., posinf=0., neginf=0.)
+                corr = torch.nan_to_num(torch.corrcoef(y.T).reshape(y.shape[1], y.shape[1]), nan=0., posinf=0., neginf=0.)
                 raw = 1 - corr
                 raw = (raw + raw.T) / 2
                 values, vectors = torch.linalg.eigh(raw)

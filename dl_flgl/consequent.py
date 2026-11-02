@@ -5,7 +5,7 @@ EPS = 1e-12
 
 def correlation_psd(y):
     # Match symmetric_objective.make_rpsd in the local project exactly.
-    corr = torch.nan_to_num(torch.corrcoef(y.T), nan=0.0, posinf=0.0, neginf=0.0)
+    corr = torch.nan_to_num(torch.corrcoef(y.T).reshape(y.shape[1], y.shape[1]), nan=0.0, posinf=0.0, neginf=0.0)
     r = 1 - corr
     r = (r + r.T) / 2
     values, vectors = torch.linalg.eigh(r)

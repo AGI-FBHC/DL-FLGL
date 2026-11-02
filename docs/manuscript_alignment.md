@@ -50,3 +50,5 @@ The local project symmetric_objective.py (symmetric_half_squared_v1) now supplie
 ## Label correlation alignment
 
 correlation_psd now uses torch.corrcoef(Y.T) followed by nan_to_num(nan=0, posinf=0, neginf=0), symmetric Pearson dissimilarity and eigenvalue clipping, exactly as local symmetric_objective.make_rpsd. Dynamic relation column normalization uses epsilon=1e-8, matching local paper_alignment.relation_update (other numerical safeguards retain 1e-12). This also removes the previous small-denominator clamp in manual Pearson calculation. The PSD structural penalty remains beta1 tr(P Rpsd P.T), with gradient 2 beta1 P Rpsd.
+
+For a single label, the scalar corrcoef output is reshaped to a 1x1 matrix before eigendecomposition.
