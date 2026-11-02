@@ -175,7 +175,7 @@ The dense fuzzy dictionary and label-relation eigendecomposition can require sub
 
 ```text
 (alpha/2)||Phi P-Y||_F^2 + ((1-alpha)/2)||Phi P-M||_F^2
-+ beta1 tr(P Rpsd P.T) + beta2 ||P||_F^2 + beta3 sum(abs(P))
++ beta1 tr(P L P.T) + beta2 ||P||_F^2 + beta3 sum(abs(P))
 ```
 
 M is fixed during each inner solve. Both fitting losses follow the local project half-squared convention.
