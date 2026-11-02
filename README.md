@@ -128,7 +128,7 @@ labels = model.predict(X_test_scaled)               # threshold = 0.5
 python -m unittest discover -s tests -v
 ```
 
-Nine tests cover label impurity, Gaussian widths, relation orientation and clipping, PSD projection, gradient correctness, FISTA, deterministic training, evaluation metrics, and parameter validation. Synthetic and Flags five-fold checks are documented in the [validation report](docs/validation.md).
+Nine tests cover label impurity, Gaussian widths, relation orientation and clipping, graph Laplacian construction, gradient correctness, FISTA, deterministic training, evaluation metrics, and parameter validation. Synthetic and Flags five-fold checks are documented in the [validation report](docs/validation.md).
 
 ## Parameters
 
@@ -179,3 +179,5 @@ The dense fuzzy dictionary and label-relation eigendecomposition can require sub
 ```
 
 M is fixed during each inner solve. Both fitting losses follow the local project half-squared convention.
+
+The label graph uses A_ab=max(Pearson(Y_a,Y_b),0), A_aa=0, and L_graph=diag(A 1)-A. Undefined correlations are zero. The structural penalty beta1 tr(P L_graph P.T) equals beta1 sum_{a<b} A_ab ||P_:a-P_:b||_2^2; its gradient is 2 beta1 P L_graph. The graph is built from training labels once and remains fixed during dynamic soft-target updates. No spectral rescaling is used.

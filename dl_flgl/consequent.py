@@ -1,15 +1,21 @@
-"""Equations Rpsd, Lall_complete and grad_S; FISTA with a valid bound."""
+"""Label graph regularization, half-squared fitting losses; FISTA with a valid bound."""
 import torch
 
 EPS = 1e-12
 
-def correlation_psd(y):
-    # Match symmetric_objective.make_rpsd in the local project exactly.
-    corr = torch.nan_to_num(torch.corrcoef(y.T).reshape(y.shape[1], y.shape[1]), nan=0.0, posinf=0.0, neginf=0.0)
-    r = 1 - corr
-    r = (r + r.T) / 2
-    values, vectors = torch.linalg.eigh(r)
-    return (vectors * values.clamp_min(0)) @ vectors.T
+def label_graph_laplacian(y):
+    """Unnormalized graph Laplacian from positive training-label Pearson edges.
+
+    Negative/undefined correlations and self-edges have zero weight.
+    No PSD projection or spectral rescaling is applied.
+    """
+    if y.shape[0] < 2:
+        return y.new_zeros((y.shape[1], y.shape[1]))
+    corr = torch.nan_to_num(torch.corrcoef(y.T).reshape(y.shape[1], y.shape[1]),
+                            nan=0.0, posinf=0.0, neginf=0.0)
+    adjacency = ((corr + corr.T) / 2).clamp_min(0)
+    adjacency.fill_diagonal_(0)
+    return torch.diag(adjacency.sum(dim=1)) - adjacency
 
 def update_relation(z, y):
     accumulated = z.clamp(0, 1).T @ y

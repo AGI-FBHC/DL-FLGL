@@ -12,7 +12,7 @@ This is an extracted and corrected core implementation, not a byte-for-byte copy
 | zi, Uhat | Antecedent_SFCM_Base.predict; ML_TSK_Trainer.predict | transform; decision_function; predict_membership | Intercept first; retain all D features per rule. Latent response and clipped membership are separate APIs |
 | S_kl_t, S_norm | ml_consquents.__update_S, line 1174 | consequent.update_relation | Clip prediction to [0,1], accumulate U.T @ Y, normalize columns with epsilon |
 | M_t | ml_consquents.fit, lines 886–892 | consequent.soft_targets | Y @ S.T then clip [0,1]; fixed within each inner solve |
-| R, Rpsd | Main consequent; run_complexity_convergence_all.py corr_distance | consequent.correlation_psd | Pearson dissimilarity; explicit symmetric PSD projection; constant-label correlations set to zero |
+| R, L_graph | Main consequent; run_complexity_convergence_all.py corr_distance | consequent.label_graph_laplacian | Positive Pearson adjacency with zero diagonal; unnormalized graph Laplacian D-A; undefined correlations set to zero |
 | Lall_complete, grad_S | ml_consquents.fit, lines 1015–1022 | smooth_loss; smooth_gradient | Hard coefficient alpha/2; soft coefficient (1-alpha)/2; structural regularization independent of alpha; L2 gradient 2 beta2 P |
 | Proximal optimization | ml_consquents.fit, __softthres | consequent.optimize | Standard FISTA; L1 threshold beta3/L; valid Frobenius upper bound; objective evaluated at current iterate |
 | Dual loop | ML_TSK_Trainer.fit | DLFLGL.fit | Uniform S0, fixed antecedent, zero initial P then warm starts, fixed configurable outer budget |
@@ -25,9 +25,9 @@ The supplementary optimization details were not available as usable text in this
 FCM: random observed centers, 100 iterations and center-change tolerance 1e-6 by default. Near-zero distances share membership equally among coincident centers.
 P starts at zero and is warm-started across outer iterations. S starts uniformly at 1/L. Outer budget defaults to 5.
 Inner stopping uses the proximal-gradient mapping norm divided by max(1, ||P||F); `minimumLossMargin` names this tolerance, not the old loss-change rule.
-L = ||Phi||F^2 + 2 beta1||Rpsd||F + 2 beta2 is a conservative valid bound. No K(D+1)-square Gram matrix is stored. FISTA loss need not decrease on every accelerated step.
+L = ||Phi||F^2 + 2 beta1||L_graph||F + 2 beta2 is a conservative valid bound. No K(D+1)-square Gram matrix is stored. FISTA loss need not decrease on every accelerated step.
 The last S is updated from the last P; no additional unreported optimization pass is performed. Missing/zero relation columns remain zero under the manuscript epsilon normalization.
-Constant-label Pearson entries are defined as zero before PSD projection. Float64 and epsilon=1e-12 are used. Antecedents execute in NumPy on CPU; consequent tensors follow `device`.
+Constant-label Pearson entries are defined as zero before graph construction. Float64 and epsilon=1e-12 are used. Antecedents execute in NumPy on CPU; consequent tensors follow `device`.
 
 ## Evaluation conventions and scope
 
@@ -47,8 +47,8 @@ Original code and data stay unchanged. This package never imports the original p
 
 The local project symmetric_objective.py (symmetric_half_squared_v1) now supplies the objective convention: both fitting losses are half-squared. This supersedes the earlier asymmetric manuscript coefficients. The existing Frobenius step bound and residual stopping criterion are retained; numerical trajectories may differ from the local Gram-bound/restart solver.
 
-## Label correlation alignment
+## Label graph regularization (current)
 
-correlation_psd now uses torch.corrcoef(Y.T) followed by nan_to_num(nan=0, posinf=0, neginf=0), symmetric Pearson dissimilarity and eigenvalue clipping, exactly as local symmetric_objective.make_rpsd. Dynamic relation column normalization uses epsilon=1e-8, matching local paper_alignment.relation_update (other numerical safeguards retain 1e-12). This also removes the previous small-denominator clamp in manual Pearson calculation. The PSD structural penalty remains beta1 tr(P Rpsd P.T), with gradient 2 beta1 P Rpsd.
+Supersedes the prior Pearson-dissimilarity PSD penalty. Build A_ab=max(corr(Y_a,Y_b),0), set A_aa=0, then L_graph=diag(A 1)-A. Undefined correlations are zero. No eigenvalue projection or spectral rescaling is used. This unnormalized Laplacian is symmetric PSD and has zero row sums.
 
-For a single label, the scalar corrcoef output is reshaped to a 1x1 matrix before eigendecomposition.
+The structural loss is beta1 tr(P L_graph P.T) = beta1 sum_{a<b} A_ab ||P_:a-P_:b||^2. Its gradient is 2 beta1 P L_graph. The valid step bound is ||Phi||F^2 + 2 beta1 ||L_graph||F + 2 beta2. The graph is fixed from training labels, whereas S and soft targets update in the outer loop. The model exposes the graph as L_. Dynamic relation normalization retains epsilon=1e-8.

@@ -5,7 +5,7 @@ from dataclasses import replace
 from sklearn.preprocessing import MinMaxScaler
 from dl_flgl import Config, DLFLGL
 from dl_flgl.clustering import impurity, rule_geometry
-from dl_flgl.consequent import correlation_psd, update_relation, soft_targets, smooth_loss, smooth_gradient, optimize
+from dl_flgl.consequent import label_graph_laplacian, update_relation, soft_targets, smooth_loss, smooth_gradient, optimize
 from dl_flgl.data import demo_data
 from dl_flgl.metrics import evaluate
 
@@ -39,24 +39,24 @@ class CoreTests(unittest.TestCase):
 
     def test_psd_with_constant_labels(self):
         y = torch.tensor([[1.,0.,1.],[0.,1.,1.],[1.,0.,1.]], dtype=torch.float64)
-        r = correlation_psd(y)
+        r = label_graph_laplacian(y)
         torch.testing.assert_close(r, r.T)
         self.assertGreaterEqual(float(torch.linalg.eigvalsh(r).min()), -1e-10)
         self.assertTrue(torch.isfinite(r).all())
 
-    def test_correlation_matches_local_reference(self):
-        import warnings
-        for y in (torch.tensor([[1.,0.,1.],[0.,1.,1.],[1.,0.,1.]], dtype=torch.float64),
-                  torch.tensor([[1.,0.,1.]], dtype=torch.float64),
-                  torch.tensor([[1.],[0.],[1.]], dtype=torch.float64)):
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                corr = torch.nan_to_num(torch.corrcoef(y.T).reshape(y.shape[1], y.shape[1]), nan=0., posinf=0., neginf=0.)
-                raw = 1 - corr
-                raw = (raw + raw.T) / 2
-                values, vectors = torch.linalg.eigh(raw)
-                expected = (vectors * values.clamp_min(0)) @ vectors.T
-                torch.testing.assert_close(correlation_psd(y), expected)
+    def test_graph_energy_and_edges(self):
+        y = torch.tensor([[0.,0.,1.,1.],[1.,1.,0.,1.],[0.,0.,1.,1.],[1.,1.,0.,1.]], dtype=torch.float64)
+        lap = label_graph_laplacian(y)
+        adjacency = torch.zeros(4, 4, dtype=torch.float64)
+        adjacency[0, 1] = adjacency[1, 0] = 1.
+        torch.testing.assert_close(lap, torch.diag(adjacency.sum(1)) - adjacency)
+        torch.testing.assert_close(lap.sum(1), torch.zeros(4, dtype=torch.float64))
+        p = torch.tensor([[1.,3.,5.,7.],[2.,4.,6.,8.]], dtype=torch.float64)
+        pairwise = sum(adjacency[a,b] * (p[:,a]-p[:,b]).square().sum()
+                       for a in range(4) for b in range(a+1,4))
+        torch.testing.assert_close(((p @ lap)*p).sum(), pairwise)
+        for single in (y[:1], y[:, :1]):
+            torch.testing.assert_close(label_graph_laplacian(single), single.new_zeros((single.shape[1], single.shape[1])))
 
     def test_relation_uses_local_epsilon(self):
         z = torch.tensor([[1e-10, 2e-10]], dtype=torch.float64)
@@ -70,7 +70,7 @@ class CoreTests(unittest.TestCase):
         p = torch.randn(5, 3, generator=generator, dtype=torch.float64, requires_grad=True)
         y = torch.randint(0, 2, (7,3), generator=generator).double()
         target = torch.rand(7,3, generator=generator, dtype=torch.float64)
-        r = correlation_psd(y)
+        r = label_graph_laplacian(y)
         for alpha in (0., .37, 1.):
             c = Config(alpha=alpha, beta1=.7, beta2=.3)
             automatic, = torch.autograd.grad(smooth_loss(p, phi, y, target, r, c), p)

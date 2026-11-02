@@ -4,7 +4,7 @@ from typing import Optional
 import numpy as np
 import torch
 from .antecedent import SSFCM
-from .consequent import correlation_psd, soft_targets, update_relation, optimize
+from .consequent import label_graph_laplacian, soft_targets, update_relation, optimize
 
 @dataclass
 class Config:
@@ -58,12 +58,12 @@ class DLFLGL:
         self.P_ = torch.zeros((len(self.antecedent_.rules_) * (x.shape[1] + 1), y.shape[1]), dtype=torch.float64, device=device)
         phi = torch.as_tensor(self.antecedent_.transform(x), dtype=torch.float64, device=device)
         labels = torch.as_tensor(y, dtype=torch.float64, device=device)
-        self.R_ = correlation_psd(labels)
+        self.L_ = label_graph_laplacian(labels)
         self.S_ = torch.full((y.shape[1], y.shape[1]), 1 / y.shape[1], dtype=torch.float64, device=device)
         self.history_ = []
         for epoch in range(self.config.num_epochs):
             target = soft_targets(labels, self.S_)
-            self.P_, history = optimize(phi, labels, target, self.R_, self.config, self.P_)
+            self.P_, history = optimize(phi, labels, target, self.L_, self.config, self.P_)
             relation = update_relation(phi @ self.P_, labels)
             history['relation_change'] = float(torch.linalg.matrix_norm(relation - self.S_))
             history['epoch'] = epoch + 1
