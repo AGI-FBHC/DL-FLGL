@@ -44,6 +44,26 @@ class CoreTests(unittest.TestCase):
         self.assertGreaterEqual(float(torch.linalg.eigvalsh(r).min()), -1e-10)
         self.assertTrue(torch.isfinite(r).all())
 
+    def test_correlation_matches_local_reference(self):
+        import warnings
+        for y in (torch.tensor([[1.,0.,1.],[0.,1.,1.],[1.,0.,1.]], dtype=torch.float64),
+                  torch.tensor([[1.,0.,1.]], dtype=torch.float64),
+                  torch.tensor([[1.],[0.],[1.]], dtype=torch.float64)):
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                corr = torch.nan_to_num(torch.corrcoef(y.T), nan=0., posinf=0., neginf=0.)
+                raw = 1 - corr
+                raw = (raw + raw.T) / 2
+                values, vectors = torch.linalg.eigh(raw)
+                expected = (vectors * values.clamp_min(0)) @ vectors.T
+                torch.testing.assert_close(correlation_psd(y), expected)
+
+    def test_relation_uses_local_epsilon(self):
+        z = torch.tensor([[1e-10, 2e-10]], dtype=torch.float64)
+        y = torch.tensor([[1., 0.]], dtype=torch.float64)
+        a = z.clamp(0, 1).T @ y
+        torch.testing.assert_close(update_relation(z, y), a / (a.sum(0, keepdim=True) + 1e-8))
+
     def test_gradient_against_autograd(self):
         generator = torch.Generator().manual_seed(17)
         phi = torch.randn(7, 5, generator=generator, dtype=torch.float64)

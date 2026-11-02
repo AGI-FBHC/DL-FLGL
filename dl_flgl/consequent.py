@@ -4,11 +4,8 @@ import torch
 EPS = 1e-12
 
 def correlation_psd(y):
-    centered = y - y.mean(dim=0, keepdim=True)
-    norms = torch.linalg.vector_norm(centered, dim=0)
-    corr = centered.T @ centered / (norms[:, None] * norms[None, :]).clamp_min(EPS)
-    # Undefined Pearson correlations for constant labels are set to zero.
-    corr = corr.clamp(-1, 1)
+    # Match symmetric_objective.make_rpsd in the local project exactly.
+    corr = torch.nan_to_num(torch.corrcoef(y.T), nan=0.0, posinf=0.0, neginf=0.0)
     r = 1 - corr
     r = (r + r.T) / 2
     values, vectors = torch.linalg.eigh(r)
@@ -16,7 +13,7 @@ def correlation_psd(y):
 
 def update_relation(z, y):
     accumulated = z.clamp(0, 1).T @ y
-    return accumulated / (accumulated.sum(dim=0, keepdim=True) + EPS)
+    return accumulated / (accumulated.sum(dim=0, keepdim=True) + 1e-8)
 
 def soft_targets(y, s):
     return (y @ s.T).clamp(0, 1)
