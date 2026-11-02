@@ -62,8 +62,8 @@ class CoreTests(unittest.TestCase):
         target = .4 * y
         c = Config(alpha=.4, beta1=0., beta2=.2, beta3=.1, maxIter=2000, minimumLossMargin=1e-9)
         actual, history = optimize(phi, y, target, torch.zeros(2,2,dtype=torch.float64), c, torch.zeros_like(y))
-        b = c.alpha*y + 2*(1-c.alpha)*target
-        expected = (b-c.beta3).clamp_min(0)/(2-c.alpha+2*c.beta2)
+        b = c.alpha*y + (1-c.alpha)*target
+        expected = (b-c.beta3).clamp_min(0)/(1+2*c.beta2)
         torch.testing.assert_close(actual, expected, atol=1e-8, rtol=1e-8)
         self.assertTrue(history['converged'])
 

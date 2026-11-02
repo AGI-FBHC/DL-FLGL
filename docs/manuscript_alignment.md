@@ -13,7 +13,7 @@ This is an extracted and corrected core implementation, not a byte-for-byte copy
 | S_kl_t, S_norm | ml_consquents.__update_S, line 1174 | consequent.update_relation | Clip prediction to [0,1], accumulate U.T @ Y, normalize columns with epsilon |
 | M_t | ml_consquents.fit, lines 886–892 | consequent.soft_targets | Y @ S.T then clip [0,1]; fixed within each inner solve |
 | R, Rpsd | Main consequent; run_complexity_convergence_all.py corr_distance | consequent.correlation_psd | Pearson dissimilarity; explicit symmetric PSD projection; constant-label correlations set to zero |
-| Lall_complete, grad_S | ml_consquents.fit, lines 1015–1022 | smooth_loss; smooth_gradient | Hard coefficient alpha/2; soft coefficient 1-alpha; structural regularization independent of alpha; L2 gradient 2 beta2 P |
+| Lall_complete, grad_S | ml_consquents.fit, lines 1015–1022 | smooth_loss; smooth_gradient | Hard coefficient alpha/2; soft coefficient (1-alpha)/2; structural regularization independent of alpha; L2 gradient 2 beta2 P |
 | Proximal optimization | ml_consquents.fit, __softthres | consequent.optimize | Standard FISTA; L1 threshold beta3/L; valid Frobenius upper bound; objective evaluated at current iterate |
 | Dual loop | ML_TSK_Trainer.fit | DLFLGL.fit | Uniform S0, fixed antecedent, zero initial P then warm starts, fixed configurable outer budget |
 | Five metrics | evaluation_out.py | metrics.evaluate | Retain AP, HL, OE, RL, normalized CV; explicit edge cases below |
@@ -25,7 +25,7 @@ The supplementary optimization details were not available as usable text in this
 FCM: random observed centers, 100 iterations and center-change tolerance 1e-6 by default. Near-zero distances share membership equally among coincident centers.
 P starts at zero and is warm-started across outer iterations. S starts uniformly at 1/L. Outer budget defaults to 5.
 Inner stopping uses the proximal-gradient mapping norm divided by max(1, ||P||F); `minimumLossMargin` names this tolerance, not the old loss-change rule.
-L = (2-alpha)||Phi||F^2 + 2 beta1||Rpsd||F + 2 beta2 is a conservative valid bound. No K(D+1)-square Gram matrix is stored. FISTA loss need not decrease on every accelerated step.
+L = ||Phi||F^2 + 2 beta1||Rpsd||F + 2 beta2 is a conservative valid bound. No K(D+1)-square Gram matrix is stored. FISTA loss need not decrease on every accelerated step.
 The last S is updated from the last P; no additional unreported optimization pass is performed. Missing/zero relation columns remain zero under the manuscript epsilon normalization.
 Constant-label Pearson entries are defined as zero before PSD projection. Float64 and epsilon=1e-12 are used. Antecedents execute in NumPy on CPU; consequent tensors follow `device`.
 
@@ -42,3 +42,7 @@ No 100-trial Optuna search, baseline comparison, paper figure reproduction, or n
 
 Full-space FCM and unsupervised SFCM model alternatives, label smoothing, temperature scaling, correlation/ranking postprocessing, threshold search, ranking-loss additions, all ablations, sensitivity/plotting/statistical scripts, wandb and cached results.
 Original code and data stay unchanged. This package never imports the original project. Source fingerprints identify provenance without copying the manuscript or private paths.
+
+## Objective alignment update
+
+The local project symmetric_objective.py (symmetric_half_squared_v1) now supplies the objective convention: both fitting losses are half-squared. This supersedes the earlier asymmetric manuscript coefficients. The existing Frobenius step bound and residual stopping criterion are retained; numerical trajectories may differ from the local Gram-bound/restart solver.

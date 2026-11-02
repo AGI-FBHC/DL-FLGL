@@ -170,3 +170,12 @@ DL-FLGL/
 This core release follows Section 3 of the revised manuscript. Its formula corrections and numerical conventions are documented explicitly. The validation results are execution and correctness checks, **not reproduction of the manuscript's reported benchmark tables**. The 100-trial hyperparameter search, baseline comparisons, and full nine-dataset experiments are not included.
 
 The dense fuzzy dictionary and label-relation eigendecomposition can require substantial memory and computation for large feature or label spaces. Budget exhaustion is recorded in the convergence diagnostics.
+
+### Current consequent objective
+
+```text
+(alpha/2)||Phi P-Y||_F^2 + ((1-alpha)/2)||Phi P-M||_F^2
++ beta1 tr(P Rpsd P.T) + beta2 ||P||_F^2 + beta3 sum(abs(P))
+```
+
+M is fixed during each inner solve. Both fitting losses follow the local project half-squared convention.

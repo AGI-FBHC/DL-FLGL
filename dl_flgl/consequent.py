@@ -24,12 +24,12 @@ def soft_targets(y, s):
 def smooth_loss(p, phi, y, target, r, c):
     z = phi @ p
     return (0.5 * c.alpha * (z - y).square().sum()
-            + (1 - c.alpha) * (z - target).square().sum()
+            + 0.5 * (1 - c.alpha) * (z - target).square().sum()
             + c.beta1 * ((p @ r) * p).sum() + c.beta2 * p.square().sum())
 
 def smooth_gradient(p, phi, y, target, r, c):
     z = phi @ p
-    return (phi.T @ (c.alpha * (z - y) + 2 * (1 - c.alpha) * (z - target))
+    return (phi.T @ (c.alpha * (z - y) + (1 - c.alpha) * (z - target))
             + 2 * c.beta1 * p @ r + 2 * c.beta2 * p)
 
 def soft_threshold(p, threshold):
@@ -37,7 +37,7 @@ def soft_threshold(p, threshold):
 
 def optimize(phi, y, target, r, c, p):
     # ||Phi||_F^2 is an upper bound on ||Phi||_2^2. Avoid a large Gram matrix.
-    lip = ((2 - c.alpha) * phi.square().sum()
+    lip = (phi.square().sum()
            + 2 * c.beta1 * torch.linalg.matrix_norm(r, ord='fro') + 2 * c.beta2).clamp_min(EPS)
     accelerated = p.clone()
     t = 1.0
